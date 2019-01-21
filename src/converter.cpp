@@ -11,24 +11,7 @@
 
 #include    <QCoreApplication>
 
-//------------------------------------------------------------------------------
-//
-//------------------------------------------------------------------------------
-QString toNativePath(const QString &path)
-{
-    QString tmp = path;
-
-#if defined(Q_OS_UNIX)
-    tmp.replace('\\', QDir::separator());
-#else
-    tmp.replace('/', QDir::separator());
-#endif
-
-    if (*(tmp.begin()) == QDir::separator())
-        tmp.remove(0, 1);
-
-    return tmp;
-}
+#include    "path-funcs.h"
 
 //------------------------------------------------------------------------------
 //
@@ -66,28 +49,22 @@ void Converter::process(const QString &routeDir)
     QString texturesDir = routeDirectory + "textures";
 
     QDir models(modelsDir);
-    QDirIterator model_files(models.path(), QStringList() << "*.dmd", QDir::NoDotAndDotDot | QDir::Files);
+    QDirIterator model_files(models.path(), QStringList() << "*.dmd",
+                             QDir::NoDotAndDotDot | QDir::Files,
+                             QDirIterator::Subdirectories);
 
     while (model_files.hasNext())
     {
         QFileInfo fileInfo(model_files.next());
-        QString key = fileInfo.baseName().toLower();
-
-        std::wstring tmp = fileInfo.fileName().toStdWString();
-        size_t pos = tmp.find(L"х");
-
-        QString tmp2;
-
-        if (pos != std::wstring::npos)
-        {
-            tmp2 = QObject::tr(fileInfo.fileName().toStdString().c_str());
-        }
+        QString key = fileInfo.baseName().toLower();        
 
         model_names.insert(key, fileInfo.fileName());
     }
 
     QDir textures(texturesDir);
-    QDirIterator texture_files(textures.path(), QStringList() << "*.bmp" << "*.tga", QDir::NoDotAndDotDot | QDir::Files);
+    QDirIterator texture_files(textures.path(), QStringList() << "*.bmp" << "*.tga",
+                               QDir::NoDotAndDotDot | QDir::Files,
+                               QDirIterator::Subdirectories);
 
     while (texture_files.hasNext())
     {
