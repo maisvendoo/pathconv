@@ -28,6 +28,8 @@ private:
     void process(const QString &routeDir);
 
     bool readObjectsRef(const QString &path);
+
+    bool renameFiles();
 };
 
 #endif // CONVERTER_H
