@@ -103,7 +103,7 @@ bool Converter::readObjectsRef(const QString &path)
         objects_ref_line_t ref_line;
         QString line = ref_line.content = stream.readLine();
 
-        if (line.isEmpty())
+        if (line.isEmpty() || (*(line.begin()) == ":") )
         {
             ref_line.type = EmptyLine;
             ref_lines.push_back(ref_line);
