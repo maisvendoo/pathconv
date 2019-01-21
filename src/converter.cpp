@@ -6,11 +6,41 @@
 
 #include    <QDebug>
 
+#include    <algorithm>
+#include    <string>
+
+#include    <QCoreApplication>
+
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+QString toNativePath(const QString &path)
+{
+    QString tmp = path;
+
+#if defined(Q_OS_UNIX)
+    tmp.replace('\\', QDir::separator());
+#else
+    tmp.replace('/', QDir::separator());
+#endif
+
+    if (*(tmp.begin()) == QDir::separator())
+        tmp.remove(0, 1);
+
+    return tmp;
+}
+
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
 Converter::Converter(const QString &routeDir)
 {
     process(routeDir);
 }
 
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
 Converter::~Converter()
 {
 
@@ -30,7 +60,7 @@ void Converter::process(const QString &routeDir)
     }
 
     if (*(routeDir.end() - 1) != QDir::separator())
-        routeDirectory += QDir::separator();
+        routeDirectory += QDir::separator();    
 
     QString modelsDir = routeDirectory + "models";
     QString texturesDir = routeDirectory + "textures";
@@ -42,6 +72,16 @@ void Converter::process(const QString &routeDir)
     {
         QFileInfo fileInfo(model_files.next());
         QString key = fileInfo.baseName().toLower();
+
+        std::wstring tmp = fileInfo.fileName().toStdWString();
+        size_t pos = tmp.find(L"х");
+
+        QString tmp2;
+
+        if (pos != std::wstring::npos)
+        {
+            tmp2 = QObject::tr(fileInfo.fileName().toStdString().c_str());
+        }
 
         model_names.insert(key, fileInfo.fileName());
     }
@@ -63,27 +103,7 @@ void Converter::process(const QString &routeDir)
         return;
     }
 
-    //renameFiles();
     rewriteObjectsRef();
-}
-
-//------------------------------------------------------------------------------
-//
-//------------------------------------------------------------------------------
-QString toNativePath(const QString &path)
-{
-    QString tmp = path;
-
-#if defined(Q_OS_UNIX)
-    tmp.replace('\\', QDir::separator());
-#else
-    tmp.replace('/', QDir::separator());
-#endif
-
-    if (*(tmp.begin()) == QDir::separator())
-        tmp.remove(0, 1);
-
-    return tmp;
 }
 
 //------------------------------------------------------------------------------
@@ -125,22 +145,7 @@ bool Converter::readObjectsRef(const QString &path)
         }
 
         ref_line.type = RefLine;
-        ref_lines.push_back(ref_line);
-
-        QStringList tokens = line.split('\t');
-
-        if (tokens.size() < 3)
-            continue;
-
-        QFileInfo model(toNativePath(tokens[1]));
-        QFileInfo texture(toNativePath(tokens[2]));
-
-        objects_ref_t object_ref;
-
-        object_ref.model_name = model.path() + QDir::separator() + model.fileName();
-        object_ref.texture_name = texture.path() + QDir::separator() + texture.fileName();
-
-        objects_ref.insert(model.baseName(), object_ref);
+        ref_lines.push_back(ref_line);        
     }
 
     return true;
@@ -212,8 +217,6 @@ bool Converter::rewriteObjectsRef()
 
         refFile.close();
     }
-
-
 
     return true;
 }

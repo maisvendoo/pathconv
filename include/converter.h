@@ -5,12 +5,6 @@
 #include    <QMap>
 #include    <QVector>
 
-struct objects_ref_t
-{
-    QString model_name;
-    QString texture_name;
-};
-
 enum LineType
 {
     CommentLine,
@@ -37,10 +31,11 @@ private:
     QString routeDirectory;
 
     QMap<QString, QString> model_names;
-    QMap<QString, QString> texture_names;
-    QMap<QString, objects_ref_t> objects_ref;
+    QMap<QString, QString> texture_names;    
 
     QVector<objects_ref_line_t> ref_lines;
+
+    void renameModels();
 
     void process(const QString &routeDir);
 
