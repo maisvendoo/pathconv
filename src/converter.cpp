@@ -63,7 +63,8 @@ void Converter::process(const QString &routeDir)
         return;
     }
 
-    renameFiles();
+    //renameFiles();
+    rewriteObjectsRef();
 }
 
 //------------------------------------------------------------------------------
@@ -99,16 +100,32 @@ bool Converter::readObjectsRef(const QString &path)
 
     while (!stream.atEnd())
     {
-        QString line = stream.readLine();
+        objects_ref_line_t ref_line;
+        QString line = ref_line.content = stream.readLine();
 
         if (line.isEmpty())
+        {
+            ref_line.type = EmptyLine;
+            ref_lines.push_back(ref_line);
             continue;
+        }
 
         if (*(line.begin()) == ';' )
+        {
+            ref_line.type = CommentLine;
+            ref_lines.push_back(ref_line);
             continue;
+        }
 
         if (*(line.begin()) == '[' )
+        {
+            ref_line.type = OptionLine;
+            ref_lines.push_back(ref_line);
             continue;
+        }
+
+        ref_line.type = RefLine;
+        ref_lines.push_back(ref_line);
 
         QStringList tokens = line.split('\t');
 
@@ -132,59 +149,71 @@ bool Converter::readObjectsRef(const QString &path)
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-bool Converter::renameFiles()
+bool Converter::rewriteObjectsRef()
 {
-    for (auto it = objects_ref.begin(); it != objects_ref.end(); ++it)
+    for (auto it = ref_lines.begin(); it != ref_lines.end(); ++it)
     {
-        auto model_it = model_names.find(it.key());
-
-        if (model_it.key() != it.key())
-            continue;
-
-        QString old_name = model_it.value();
-
-        QFileInfo modelInfo(it.value().model_name);
-        QFileInfo textureInfo(it.value().texture_name);
-
-        QString oldModelName = routeDirectory + modelInfo.path() + QDir::separator() + old_name;
-        QString newModelName = routeDirectory + it.value().model_name;
-
-        if (oldModelName != newModelName)
+        if (it->type == RefLine)
         {
-            QFile file(oldModelName);
+            QStringList tokens = it->content.split('\t');
+            QString new_content = "";
 
-            if (file.exists())
+            for (auto token_it = tokens.begin() + 1; token_it != tokens.end(); ++token_it)
             {
-                if (file.copy(newModelName))
+                QFileInfo fileInfo(toNativePath(*token_it));
+                QString key = "";
+
+                if (token_it == tokens.begin() + 1)
                 {
-                    qDebug() << "Renamed from " << oldModelName << " to " << newModelName << "\n";
-                    //QFile::remove(oldModelName);
+                    key = fileInfo.baseName().toLower();
+
+                    auto model_it = model_names.find(key);
+
+                    if (model_it.key() != key)
+                        continue;
+
+                    *token_it = QDir::separator() + fileInfo.path() + QDir::separator() + model_it.value();
+                }
+                else
+                {
+                    key = fileInfo.fileName().toLower();
+
+                    auto texture_it = texture_names.find(key);
+
+                    if (texture_it.key() != key)
+                        continue;
+
+                    *token_it = QDir::separator() + fileInfo.path() + QDir::separator() + texture_it.value();
                 }
             }
-        }
 
-        auto texture_it = texture_names.find(textureInfo.fileName().toLower());
+            new_content += *(tokens.begin()) + "\t";
 
-        if (texture_it.key() != textureInfo.fileName().toLower())
-            continue;
+            for (auto token_it = tokens.begin() + 1; token_it != tokens.end() - 1; ++token_it)
+                new_content += QDir::separator() + toNativePath(*token_it) + "\t";
 
-        QString oldTextureName = routeDirectory + textureInfo.path() + QDir::separator() + texture_it.value();
-        QString newTextureName = routeDirectory + it.value().texture_name;
+            new_content += QDir::separator() + toNativePath(*(tokens.end() - 1));
 
-        if (oldTextureName != newTextureName)
-        {
-            QFile file(oldTextureName);
-
-            if (file.exists())
-            {
-                if (file.copy(newTextureName))
-                {
-                    qDebug() << "Renamed from " << oldTextureName << " to " << newTextureName << "\n";
-                    //QFile::remove(oldTextureName);
-                }
-            }
+            it->content = new_content;
         }
     }
+
+    QFile::rename(routeDirectory + "objects.ref", routeDirectory + "objects.ref.bak");
+    QFile refFile(routeDirectory + "objects.ref");
+
+    if (refFile.open(QIODevice::WriteOnly))
+    {
+        QTextStream stream(&refFile);
+
+        for (auto it = ref_lines.begin(); it != ref_lines.end(); ++it)
+        {
+            stream << it->content << "\n";
+        }
+
+        refFile.close();
+    }
+
+
 
     return true;
 }
